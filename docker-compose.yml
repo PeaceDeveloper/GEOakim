@@ -1,0 +1,58 @@
+services:
+  web:
+    build: .
+    container_name: geoakim_web
+    ports:
+      - "${APP_PORT}:80"
+    volumes:
+      - ${DATA_VOLUME}:/var/www/html/data
+      - ${LOGS_VOLUME}:/var/log/apache2
+    environment:
+      - TZ=${TIMEZONE}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+    restart: unless-stopped
+    networks:
+      - geoakim_network
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: geoakim_ngrok
+    restart: unless-stopped
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/etc/ngrok.yml"
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
+    ports:
+      - "4040:4040"  # ngrok web interface
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      - web
+    networks:
+      - geoakim_network
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: geoakim_dozzle
+    restart: unless-stopped
+    ports:
+      - "${DOZZLE_PORT}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOZZLE_NO_ANALYTICS=true
+    networks:
+      - geoakim_network
+
+volumes:
+  data:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  geoakim_network:
+    driver: bridge

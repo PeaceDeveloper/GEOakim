@@ -1,0 +1,9 @@
+version: "2"
+authtoken: ${NGROK_AUTHTOKEN}
+tunnels:
+  web:
+    addr: web:80
+    proto: http
+    schemes: [https, http]
+    inspect: false
+web_addr: 0.0.0.0:4040

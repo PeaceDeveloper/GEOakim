@@ -1,6 +1,6 @@
 <?php
 $data = json_decode(file_get_contents('data.json'), true) ?? [];
-$api_key = "API GOOGLE";
+$api_key = $_ENV['GOOGLE_MAPS_API_KEY'] ?? 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
 ?>
 
 <!DOCTYPE html>
