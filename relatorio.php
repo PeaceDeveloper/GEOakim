@@ -1,6 +1,22 @@
 <?php
-$data = json_decode(file_get_contents('data.json'), true) ?? [];
-$api_key = "API GOOGLE";
+require_once 'mongo-connection.php';
+
+// Try to get data from MongoDB, fallback to JSON file
+try {
+    $mongo = MongoConnection::getInstance();
+    $data = $mongo->getAllEntries();
+    
+    // If MongoDB has no data, try the JSON file as fallback
+    if (empty($data) && file_exists('data.json')) {
+        $data = json_decode(file_get_contents('data.json'), true) ?? [];
+    }
+} catch (Exception $e) {
+    error_log("MongoDB error in relatorio.php: " . $e->getMessage());
+    // Fallback to JSON file
+    $data = file_exists('data.json') ? json_decode(file_get_contents('data.json'), true) ?? [] : [];
+}
+
+$api_key = $_ENV['GOOGLE_MAPS_API_KEY'] ?? "API GOOGLE";
 ?>
 
 <!DOCTYPE html>

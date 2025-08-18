@@ -1,0 +1,27 @@
+# Environment files
+.env.local
+.env.production
+
+# Log files
+*.log
+log.txt
+
+# Data files (will be in MongoDB now)
+data.json
+
+# Docker volumes
+mongodb_data/
+
+# Temporary files
+tmp/
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

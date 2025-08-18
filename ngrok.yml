@@ -1,0 +1,12 @@
+authtoken: ${NGROK_AUTHTOKEN}
+region: ${NGROK_REGION}
+console_ui: true
+tunnels:
+  web:
+    addr: web:80
+    proto: http
+    bind_tls: true
+  mongo-express:
+    addr: mongo-express:8081
+    proto: http
+    bind_tls: true

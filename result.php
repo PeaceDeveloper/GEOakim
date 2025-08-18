@@ -1,6 +1,8 @@
 <?php
 date_default_timezone_set('America/Sao_Paulo');
 
+require_once 'mongo-connection.php';
+
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);
 
@@ -23,7 +25,7 @@ $entry = [
     'geo'           => $data['geo'] ?? false
 ];
 
-// Salvar log bruto (linha de texto)
+// Salvar log bruto (linha de texto) - mantido para compatibilidade
 $log_line = "[{$entry['timestamp']}] "
   . "IP: {$entry['ip']} | "
   . "UA: {$entry['user_agent']} | "
@@ -43,14 +45,38 @@ $log_line .= "\n";
 
 file_put_contents("log.txt", $log_line, FILE_APPEND);
 
-// Salvar no JSON estruturado
-$data_file = 'data.json';
-$existing = [];
-
-if (file_exists($data_file)) {
-    $existing = json_decode(file_get_contents($data_file), true) ?? [];
+// Salvar no MongoDB
+try {
+    $mongo = MongoConnection::getInstance();
+    $success = $mongo->insertEntry($entry);
+    
+    if (!$success) {
+        error_log("Failed to insert data into MongoDB");
+        // Fallback to JSON file if MongoDB fails
+        $data_file = 'data.json';
+        $existing = [];
+        
+        if (file_exists($data_file)) {
+            $existing = json_decode(file_get_contents($data_file), true) ?? [];
+        }
+        
+        $existing[] = $entry;
+        file_put_contents($data_file, json_encode($existing, JSON_PRETTY_PRINT));
+    }
+} catch (Exception $e) {
+    error_log("MongoDB error: " . $e->getMessage());
+    // Fallback to JSON file if MongoDB connection fails
+    $data_file = 'data.json';
+    $existing = [];
+    
+    if (file_exists($data_file)) {
+        $existing = json_decode(file_get_contents($data_file), true) ?? [];
+    }
+    
+    $existing[] = $entry;
+    file_put_contents($data_file, json_encode($existing, JSON_PRETTY_PRINT));
 }
 
-$existing[] = $entry;
-
-file_put_contents($data_file, json_encode($existing, JSON_PRETTY_PRINT));
+// Return success response
+header('Content-Type: application/json');
+echo json_encode(['status' => 'success']);
