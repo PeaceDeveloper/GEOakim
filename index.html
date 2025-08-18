@@ -73,23 +73,70 @@
 
   <script>
     function showToast(message, type = 'info') {
-      const toastColors = {
-        success: 'linear-gradient(to right, #00b09b, #96c93d)',
-        error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
-        warning: 'linear-gradient(to right, #f093fb, #f5576c)',
-        info: 'linear-gradient(to right, #4facfe, #00f2fe)'
-      };
+      // Check if Toastify is available
+      if (typeof Toastify !== 'undefined') {
+        const toastColors = {
+          success: 'linear-gradient(to right, #00b09b, #96c93d)',
+          error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
+          warning: 'linear-gradient(to right, #f093fb, #f5576c)',
+          info: 'linear-gradient(to right, #4facfe, #00f2fe)'
+        };
 
-      Toastify({
-        text: message,
-        duration: 3000,
-        gravity: "top",
-        position: "right",
-        style: {
-          background: toastColors[type] || toastColors.info,
-        },
-        stopOnFocus: true,
-      }).showToast();
+        Toastify({
+          text: message,
+          duration: 3000,
+          gravity: "top",
+          position: "right",
+          style: {
+            background: toastColors[type] || toastColors.info,
+          },
+          stopOnFocus: true,
+        }).showToast();
+      } else {
+        // Fallback to custom toast notification
+        createCustomToast(message, type);
+      }
+    }
+
+    function createCustomToast(message, type = 'info') {
+      // Create a custom toast if Toastify is not available
+      const toast = document.createElement('div');
+      const colors = {
+        success: '#4caf50',
+        error: '#f44336',
+        warning: '#ff9800',
+        info: '#2196f3'
+      };
+      
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${colors[type] || colors.info};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 14px;
+        max-width: 300px;
+        word-wrap: break-word;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      `;
+      
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      // Animate in
+      setTimeout(() => toast.style.opacity = '1', 10);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 300);
+      }, 3000);
     }
 
     function coletaDados(geoFlag) {
