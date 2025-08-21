@@ -13,5 +13,20 @@
         "longitude": null,
         "accuracy": null,
         "geo": false
+    },
+    {
+        "timestamp": "2025-08-21 15:38:58",
+        "ip": "172.18.0.1",
+        "user_agent": "Mozilla\/5.0 (X11; Linux x86_64) AppleWebKit\/537.36 (KHTML, like Gecko) HeadlessChrome\/139.0.0.0 Safari\/537.36",
+        "gpu_vendor": "Google Inc. (Google)",
+        "gpu_renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "screen": "1280x720",
+        "platform": "Linux x86_64",
+        "lang": "en-US",
+        "timezone": "UTC",
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "geo": false
     }
 ]
