@@ -1,0 +1,17 @@
+[
+    {
+        "timestamp": "2025-08-21 15:37:16",
+        "ip": "172.18.0.1",
+        "user_agent": "curl\/8.5.0",
+        "gpu_vendor": "Test GPU",
+        "gpu_renderer": "Test Renderer",
+        "screen": "1920x1080",
+        "platform": "Linux",
+        "lang": "en-US",
+        "timezone": "UTC",
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "geo": false
+    }
+]

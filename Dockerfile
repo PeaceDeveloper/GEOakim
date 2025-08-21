@@ -1,16 +1,12 @@
 FROM php:8.2-apache
 
-# Install system dependencies
+# Install basic dependencies
 RUN apt-get update && apt-get install -y \
-    libssl-dev \
-    libsasl2-dev \
-    pkg-config \
-    libcurl4-openssl-dev \
+    libicu-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install MongoDB PHP extension
-RUN pecl install mongodb \
-    && docker-php-ext-enable mongodb
+# Install required PHP extensions
+RUN docker-php-ext-install intl
 
 # Enable Apache rewrite module
 RUN a2enmod rewrite
@@ -19,7 +15,7 @@ RUN a2enmod rewrite
 WORKDIR /var/www/html
 
 # Copy application files
-COPY . .
+COPY app/ .
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
@@ -27,7 +23,8 @@ RUN chown -R www-data:www-data /var/www/html \
 
 # Create logs directory
 RUN mkdir -p /var/www/html/logs \
-    && chown -R www-data:www-data /var/www/html/logs
+    && chown -R www-data:www-data /var/www/html/logs \
+    && chmod -R 775 /var/www/html/logs
 
 # Expose port
 EXPOSE 80

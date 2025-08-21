@@ -3,40 +3,19 @@ require_once 'mongo_helper.php';
 
 $data = [];
 $api_key = $_ENV['GOOGLE_MAPS_API_KEY'] ?? 'your_google_maps_api_key_here';
+$storage_type = 'file'; // Default fallback
 
 try {
-    // Get data from MongoDB
+    // Get data using the helper function (automatically handles MongoDB/file fallback)
+    $data = loadGeoData(1000);
+    
+    // Determine storage type based on MongoDB availability
     $mongo = MongoConnection::getInstance();
-    $collection = $mongo->getCollection('geo_data');
+    $storage_type = $mongo->isAvailable() ? 'mongodb' : 'file';
     
-    $cursor = $collection->find([], [
-        'sort' => ['created_at' => -1],
-        'limit' => 1000
-    ]);
-    
-    foreach ($cursor as $document) {
-        $data[] = [
-            'timestamp' => $document['timestamp'],
-            'ip' => $document['ip'],
-            'user_agent' => $document['user_agent'],
-            'gpu_vendor' => $document['gpu_vendor'],
-            'gpu_renderer' => $document['gpu_renderer'],
-            'screen' => $document['screen'],
-            'platform' => $document['platform'],
-            'lang' => $document['lang'],
-            'timezone' => $document['timezone'],
-            'latitude' => $document['latitude'],
-            'longitude' => $document['longitude'],
-            'accuracy' => $document['accuracy'],
-            'geo' => $document['geo']
-        ];
-    }
 } catch (Exception $e) {
-    error_log("Failed to load data from MongoDB: " . $e->getMessage());
-    // Fallback to old data.json if exists
-    if (file_exists('data.json')) {
-        $data = json_decode(file_get_contents('data.json'), true) ?? [];
-    }
+    error_log("Failed to load data: " . $e->getMessage());
+    $data = [];
 }
 ?>
 
@@ -186,11 +165,11 @@ try {
     </div>
     <div class="stat-card">
       <div class="stat-number">
-        <span class="status-indicator <?= !empty($data) ? 'status-online' : 'status-offline' ?>">
-          <?= !empty($data) ? 'Online' : 'Offline' ?>
+        <span class="status-indicator <?= $storage_type === 'mongodb' ? 'status-online' : 'status-offline' ?>">
+          <?= ucfirst($storage_type) ?>
         </span>
       </div>
-      <div class="stat-label">Status MongoDB</div>
+      <div class="stat-label">Storage Type</div>
     </div>
   </div>
 

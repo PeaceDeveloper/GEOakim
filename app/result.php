@@ -22,27 +22,25 @@ $entry = [
     'latitude'      => $data['lat'] ?? null,
     'longitude'     => $data['lon'] ?? null,
     'accuracy'      => $data['accuracy'] ?? null,
-    'geo'           => $data['geo'] ?? false,
-    'created_at'    => new MongoDB\BSON\UTCDateTime()
+    'geo'           => $data['geo'] ?? false
 ];
 
 try {
-    // Save to MongoDB
-    $mongo = MongoConnection::getInstance();
-    $collection = $mongo->getCollection('geo_data');
-    $result = $collection->insertOne($entry);
+    // Save data using the helper function (automatically handles MongoDB/file fallback)
+    $result = saveGeoData($entry);
     
     // Log success
     logToMongo([
         'action' => 'data_collected',
-        'entry_id' => $result->getInsertedId(),
+        'entry_id' => $result['id'],
         'ip' => $ip,
-        'geo_collected' => $entry['geo']
+        'geo_collected' => $entry['geo'],
+        'storage_used' => $result['storage']
     ], 'app_logs');
     
     // Send success response
     http_response_code(200);
-    echo json_encode(['status' => 'success', 'id' => (string)$result->getInsertedId()]);
+    echo json_encode($result);
     
 } catch (Exception $e) {
     // Log error
@@ -52,27 +50,8 @@ try {
         'ip' => $ip
     ], 'error_logs');
     
-    // Fallback to file storage
-    $log_line = "[{$entry['timestamp']}] "
-      . "IP: {$entry['ip']} | "
-      . "UA: {$entry['user_agent']} | "
-      . "GPU: {$entry['gpu_vendor']} / {$entry['gpu_renderer']} | "
-      . "Res: {$entry['screen']} | "
-      . "Plataforma: {$entry['platform']} | "
-      . "Idioma: {$entry['lang']} | "
-      . "Fuso: {$entry['timezone']}";
-
-    if ($entry['geo']) {
-      $log_line .= " | Geo: ({$entry['latitude']}, {$entry['longitude']}) ±{$entry['accuracy']}m";
-    } else {
-      $log_line .= " | Geo: NÃO COLETADO";
-    }
-
-    $log_line .= "\n";
-    file_put_contents("/var/www/html/logs/fallback.log", $log_line, FILE_APPEND);
-    
     // Send error response
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Database unavailable']);
+    echo json_encode(['status' => 'error', 'message' => 'Storage failed']);
 }
 ?>
