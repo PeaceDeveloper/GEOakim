@@ -26,8 +26,11 @@ RUN mkdir -p /var/www/html/logs \
     && chown -R www-data:www-data /var/www/html/logs \
     && chmod -R 775 /var/www/html/logs
 
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Expose port
 EXPOSE 80
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Start Apache (fix bind-mount logs permissions at runtime)
+CMD ["/usr/local/bin/docker-entrypoint.sh"]

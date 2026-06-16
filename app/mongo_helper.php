@@ -89,7 +89,11 @@ function saveToFile($data) {
         }
         
         $existing[] = $data;
-        file_put_contents($data_file, json_encode($existing, JSON_PRETTY_PRINT));
+        $written = file_put_contents($data_file, json_encode($existing, JSON_PRETTY_PRINT));
+
+        if ($written === false) {
+            return ['status' => 'error', 'message' => 'Storage failed', 'storage' => 'file'];
+        }
         
         // Save to log file
         $log_line = "[{$data['timestamp']}] "
@@ -102,9 +106,17 @@ function saveToFile($data) {
           . "Fuso: {$data['timezone']}";
 
         if ($data['geo']) {
-          $log_line .= " | Geo: ({$data['latitude']}, {$data['longitude']}) ±{$data['accuracy']}m";
+          $locationType = strtoupper($data['location_type'] ?? 'unknown');
+          $locationSource = $data['location_source'] ?? 'unknown';
+          $log_line .= " | Geo: {$locationType} ({$locationSource}) ({$data['latitude']}, {$data['longitude']})";
+          if (isset($data['accuracy']) && $data['accuracy'] !== null) {
+            $log_line .= " ±{$data['accuracy']}m";
+          }
+          if (!empty($data['location_label'])) {
+            $log_line .= " [{$data['location_label']}]";
+          }
         } else {
-          $log_line .= " | Geo: NÃO COLETADO";
+          $log_line .= " | Geo: NONE";
         }
 
         $log_line .= "\n";
@@ -145,6 +157,9 @@ function loadGeoData($limit = 1000) {
                     'latitude' => $document['latitude'],
                     'longitude' => $document['longitude'],
                     'accuracy' => $document['accuracy'],
+                    'location_type' => $document['location_type'] ?? null,
+                    'location_source' => $document['location_source'] ?? null,
+                    'location_label' => $document['location_label'] ?? null,
                     'geo' => $document['geo']
                 ];
             }

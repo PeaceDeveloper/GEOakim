@@ -17,6 +17,9 @@ services:
       - APP_TIMEZONE=${APP_TIMEZONE}
       - APP_ENV=${APP_ENV}
       - APP_DEBUG=${APP_DEBUG}
+      - IP_GEO_ENABLED=${IP_GEO_ENABLED}
+      - IP_GEO_PROVIDER=${IP_GEO_PROVIDER}
+    command: bash -c "chmod -R 777 /var/www/html/logs 2>/dev/null; apache2-foreground"
     depends_on:
       - mongodb
     networks:
@@ -44,7 +47,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "9999:8080"
+      - "9995:8080"
     environment:
       DOZZLE_LEVEL: info
       DOZZLE_TAILSIZE: 300
