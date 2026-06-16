@@ -1,0 +1,25 @@
+# Environment files
+.env
+
+# Docker files
+.docker/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+logs/*.json
+logs/debug-*.log
+
+# MongoDB data
+mongo-data/
+
+# Temporary files
+*.tmp
+*.temp

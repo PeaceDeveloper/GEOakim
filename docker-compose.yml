@@ -1,0 +1,63 @@
+services:
+  web:
+    build: .
+    container_name: geoakim-web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./logs:/var/www/html/logs
+      - ./app:/var/www/html
+    environment:
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_PORT=${MONGO_PORT}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_USERNAME=${MONGO_USERNAME}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+      - APP_TIMEZONE=${APP_TIMEZONE}
+      - APP_ENV=${APP_ENV}
+      - APP_DEBUG=${APP_DEBUG}
+      - IP_GEO_ENABLED=${IP_GEO_ENABLED}
+      - IP_GEO_PROVIDER=${IP_GEO_PROVIDER}
+    command: bash -c "chmod -R 777 /var/www/html/logs 2>/dev/null; apache2-foreground"
+    depends_on:
+      - mongodb
+    networks:
+      - geoakim-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: geoakim-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    ports:
+      - "27017:27017"
+    networks:
+      - geoakim-network
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: geoakim-dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9995:8080"
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_TAILSIZE: 300
+    networks:
+      - geoakim-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  geoakim-network:
+    driver: bridge

