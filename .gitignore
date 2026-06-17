@@ -23,3 +23,6 @@ mongo-data/
 # Temporary files
 *.tmp
 *.temp
+
+# Composer
+app/vendor/

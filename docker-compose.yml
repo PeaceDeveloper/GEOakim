@@ -5,8 +5,8 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./logs:/var/www/html/logs
-      - ./app:/var/www/html
+      - ./app:/var/www/app
+      - ./logs:/var/www/app/logs
     environment:
       - MONGO_HOST=${MONGO_HOST}
       - MONGO_PORT=${MONGO_PORT}
@@ -14,12 +14,17 @@ services:
       - MONGO_USERNAME=${MONGO_USERNAME}
       - MONGO_PASSWORD=${MONGO_PASSWORD}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
-      - APP_TIMEZONE=${APP_TIMEZONE}
       - APP_ENV=${APP_ENV}
       - APP_DEBUG=${APP_DEBUG}
-      - IP_GEO_ENABLED=${IP_GEO_ENABLED}
-      - IP_GEO_PROVIDER=${IP_GEO_PROVIDER}
-    command: bash -c "chmod -R 777 /var/www/html/logs 2>/dev/null; apache2-foreground"
+      - APP_TIMEZONE=${APP_TIMEZONE}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - AD_MP_URL=${AD_MP_URL}
+      - AD_MP_DOMAIN=${AD_MP_DOMAIN}
+      - AD_MP_BASE_DN=${AD_MP_BASE_DN}
+      - AD_MP_USE_SSL=${AD_MP_USE_SSL:-false}
+      - MEETING_URL_ALLOWLIST=${MEETING_URL_ALLOWLIST:-teams.microsoft.com}
+      - COLLECT_RATE_LIMIT=${COLLECT_RATE_LIMIT:-30}
+    command: bash -c "chmod -R 777 /var/www/app/logs 2>/dev/null; /usr/local/bin/docker-entrypoint.sh"
     depends_on:
       - mongodb
     networks:
