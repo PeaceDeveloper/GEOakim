@@ -23,3 +23,11 @@ mongo-data/
 # Temporary files
 *.tmp
 *.temp
+
+# Composer
+app/vendor/
+
+# TLS certificates (production)
+nginx/certs/*.pem
+nginx/certs/*.key
+!nginx/certs/.gitkeep
