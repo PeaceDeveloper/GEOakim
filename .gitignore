@@ -26,3 +26,8 @@ mongo-data/
 
 # Composer
 app/vendor/
+
+# TLS certificates (production)
+nginx/certs/*.pem
+nginx/certs/*.key
+!nginx/certs/.gitkeep

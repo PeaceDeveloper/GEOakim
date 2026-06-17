@@ -8,5 +8,5 @@ ob_start();
 </div>
 <?php
 $content = ob_get_clean();
-$joinConfig = [];
+$sessionMeta = [];
 require __DIR__ . '/../layouts/public.php';

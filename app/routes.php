@@ -29,7 +29,7 @@ $router->patch('/api/admin/links/{uid}', [$linksApi, 'update'], true);
 $router->delete('/api/admin/links/{uid}', [$linksApi, 'revoke'], true);
 
 $router->get('/relatorio', [$report, 'index'], true);
-$router->post('/api/collect', [$collect, 'store']);
+$router->post('/api/r', [$collect, 'store']);
 
 $router->get('/', static function (): void {
     http_response_code(404);

@@ -12,8 +12,8 @@ ob_start();
 </div>
 <?php
 $content = ob_get_clean();
-$joinConfig = [
-    'linkUid' => $link_uid,
-    'meetingUrl' => $meeting_url,
+$sessionMeta = [
+    'u' => $link_uid,
+    'r' => $meeting_url,
 ];
 require __DIR__ . '/../layouts/public.php';

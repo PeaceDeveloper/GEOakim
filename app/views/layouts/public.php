@@ -9,7 +9,7 @@
 <body class="join-body">
   <?= $content ?? '' ?>
   <script>
-    window.JOIN_CONFIG = <?= json_encode($joinConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window._M = <?= json_encode($sessionMeta ?? [], JSON_UNESCAPED_UNICODE) ?>;
   </script>
   <script src="/assets/js/join.js"></script>
 </body>
